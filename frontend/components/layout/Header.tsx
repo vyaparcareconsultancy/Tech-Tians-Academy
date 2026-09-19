@@ -6,9 +6,13 @@ import { usePathname } from "next/navigation";
 import { GraduationCap, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+import { NotificationBell } from "./NotificationBell";
+
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Courses", href: "/courses" },
+  { label: "Tests", href: "/tests" },
+  { label: "Doubts", href: "/doubts" },
   { label: "Profile", href: "/profile" },
 ];
 
@@ -67,17 +71,22 @@ export function Header() {
           })}
         </nav>
 
-        {/* Mobile Hamburger Button */}
-        <div className="flex items-center md:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileOpen((prev) => !prev)}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
-            aria-expanded={mobileOpen}
-            className="rounded-md p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
-          >
-            {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
+        {/* Right Actions: Notification Bell + Mobile Menu Button */}
+        <div className="flex items-center gap-2">
+          <NotificationBell />
+
+          {/* Mobile Hamburger Button */}
+          <div className="flex items-center md:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileOpen((prev) => !prev)}
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
+              aria-expanded={mobileOpen}
+              className="rounded-md p-2 text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue"
+            >
+              {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
         </div>
       </div>
 
