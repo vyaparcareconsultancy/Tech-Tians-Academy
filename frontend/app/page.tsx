@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Navbar, Footer } from "@/components/layout";
 import { LandingSections } from "@/components/landing/LandingSections";
 import { APP_NAME } from "@/lib/constants";
 
@@ -35,13 +34,5 @@ export const metadata: Metadata = {
 };
 
 export default function HomePage() {
-  return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <Navbar isLoggedIn={false} />
-      <main className="flex-1">
-        <LandingSections />
-      </main>
-      <Footer />
-    </div>
-  );
+  return <LandingSections />;
 }

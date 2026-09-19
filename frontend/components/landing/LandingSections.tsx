@@ -24,15 +24,15 @@ import {
 } from "lucide-react";
 import { Container } from "@/components/layout";
 import { Button, Badge, Modal, ModalBody, ModalHeader, ModalFooter, Accordion } from "@/components/ui";
-import { CourseCard } from "@/components/shared/CourseCard";
+import { CourseCard } from "@/components/dashboard/CourseCard";
 import {
   MOCK_STATS,
   MOCK_FEATURES,
-  MOCK_COURSES,
+  MOCK_ALL_COURSES,
   MOCK_STEPS,
   MOCK_TESTIMONIALS,
   MOCK_FAQS,
-} from "@/lib/mock-data";
+} from "@/lib/mock/dashboard";
 
 // Simple hook for IntersectionObserver visibility trigger
 function useInView(options?: IntersectionObserverInit) {
@@ -362,7 +362,7 @@ export function LandingSections() {
           </div>
 
           <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {MOCK_COURSES.map((course) => (
+            {MOCK_ALL_COURSES.slice(0, 3).map((course) => (
               <CourseCard key={course.id} course={course} />
             ))}
           </div>

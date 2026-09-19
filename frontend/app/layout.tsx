@@ -4,6 +4,7 @@ import "./globals.css";
 import { APP_NAME } from "@/lib/constants";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui";
+import { Header, Footer } from "@/components/layout";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -31,10 +32,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${inter.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans text-foreground antialiased`}
+        className={`${inter.variable} ${jetbrainsMono.variable} flex min-h-screen flex-col bg-background font-sans text-foreground antialiased`}
       >
         <ThemeProvider>
-          {children}
+          <Header />
+          <main className="flex-1">{children}</main>
+          <Footer />
           <Toaster />
         </ThemeProvider>
       </body>
