@@ -1,5 +1,10 @@
-import { apiClient, setMemoryAccessToken } from "@/lib/api-client";
-import { LoginCredentials, LoginResponse, User } from "@/types/auth";
+import {
+  apiClient,
+  getRefreshToken,
+  setMemoryAccessToken,
+  setRefreshToken,
+} from "@/lib/api-client";
+import { LoginCredentials, LoginResponse, User, UserRole } from "@/types/auth";
 import {
   MOCK_ADMIN_LOGIN_RESPONSE,
   MOCK_TEACHER_LOGIN_RESPONSE,
@@ -8,6 +13,39 @@ import {
 } from "./mock-data";
 
 const isMock = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
+/** User shape returned by the backend: roles is an uppercase array, e.g. ["ADMIN"] */
+interface BackendUser {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string | null;
+  roles?: string[];
+}
+
+interface BackendLoginResponse {
+  user: BackendUser;
+  tokens: { accessToken: string; refreshToken: string; expiresIn: string };
+}
+
+/** Map backend roles array to the single lowercase role the panel uses */
+function toPanelUser(user: BackendUser): User {
+  const roles = user.roles ?? [];
+  const role: UserRole =
+    roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")
+      ? "admin"
+      : roles.includes("TEACHER")
+      ? "teacher"
+      : "student";
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone ?? undefined,
+    role,
+  };
+}
 
 export const authService = {
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
@@ -26,11 +64,19 @@ export const authService = {
       return MOCK_ADMIN_LOGIN_RESPONSE;
     }
 
-    const response = await apiClient.post<LoginResponse>("/auth/login", credentials);
-    if (response.data?.tokens?.accessToken) {
-      setMemoryAccessToken(response.data.tokens.accessToken);
-    }
-    return response.data;
+    // Backend expects { identifier, password }; identifier can be email or phone
+    const response = await apiClient.post<BackendLoginResponse>("/auth/login", {
+      identifier: credentials.email,
+      password: credentials.password,
+    });
+    const { user, tokens } = response.data;
+    setMemoryAccessToken(tokens.accessToken);
+    setRefreshToken(tokens.refreshToken);
+
+    return {
+      user: toPanelUser(user),
+      tokens: { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
+    };
   },
 
   async logout(): Promise<void> {
@@ -41,9 +87,11 @@ export const authService = {
     }
 
     try {
-      await apiClient.post("/auth/logout");
+      const refreshToken = getRefreshToken();
+      await apiClient.post("/auth/logout", refreshToken ? { refreshToken } : {});
     } finally {
       setMemoryAccessToken(null);
+      setRefreshToken(null);
     }
   },
 
@@ -61,7 +109,7 @@ export const authService = {
       return MOCK_ADMIN_USER;
     }
 
-    const response = await apiClient.get<User>("/auth/me");
-    return response.data;
+    const response = await apiClient.get<BackendUser>("/auth/me");
+    return response.data ? toPanelUser(response.data) : null;
   },
 };

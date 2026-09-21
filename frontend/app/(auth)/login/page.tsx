@@ -8,7 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Mail, Phone, Lock, ArrowRight } from "lucide-react";
 import { Input, PasswordInput, Button, useToast } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, USE_MOCK } from "@/lib/api";
+import { LoginResponse, toUserProfile } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth";
 
 // Validation Schemas
@@ -69,18 +70,15 @@ export default function LoginPage() {
   // Handle Email + Password Submission
   const onEmailLogin = async (data: EmailFormValues) => {
     try {
-      const response = await api.post<{
-        accessToken: string;
-        refreshToken?: string;
-        user?: any;
-      }>("/auth/login", {
+      const response = await api.post<LoginResponse>("/auth/login", {
         identifier: data.email,
         password: data.password,
       });
 
       login({
-        accessToken: response.accessToken || "mock_token_" + Date.now(),
-        user: response.user,
+        accessToken: response.tokens.accessToken,
+        refreshToken: response.tokens.refreshToken,
+        user: toUserProfile(response.user),
       });
 
       success("Welcome Back!", "Redirecting to your student dashboard...");
@@ -95,6 +93,11 @@ export default function LoginPage() {
 
   // Handle Phone + OTP routing
   const onPhoneLogin = async (data: PhoneFormValues) => {
+    if (!USE_MOCK) {
+      // Backend does not have a phone-OTP login endpoint yet (only email/phone + password).
+      error("Not available yet", "Phone OTP login is coming soon. Please use Email & Password.");
+      return;
+    }
     try {
       info("Sending OTP", `Requesting verification code for +91 ${data.phone}...`);
       // Route to OTP screen with phone parameter

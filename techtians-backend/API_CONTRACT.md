@@ -40,7 +40,7 @@ export interface ApiErrorEnvelope {
 ```typescript
 export type RoleName = 'STUDENT' | 'TEACHER' | 'ADMIN' | 'SUPER_ADMIN';
 
-export type OtpPurpose = 'SIGNUP' | 'LOGIN' | 'PASSWORD_RESET' | 'PHONE_VERIFICATION';
+export type OtpPurpose = 'SIGNUP' | 'LOGIN' | 'RESET_PASSWORD';
 
 export interface AuthTokens {
   accessToken: string;
@@ -146,7 +146,7 @@ Dispatches a 6-digit one-time password to the target email or phone. Stores the 
 ```typescript
 export interface SendOtpRequest {
   identifier: string;    // Email or phone number
-  purpose: OtpPurpose;   // "SIGNUP" | "LOGIN" | "PASSWORD_RESET" | "PHONE_VERIFICATION"
+  purpose: OtpPurpose;   // "SIGNUP" | "LOGIN" | "RESET_PASSWORD"
 }
 ```
 

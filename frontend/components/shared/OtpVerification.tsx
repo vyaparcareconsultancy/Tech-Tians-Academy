@@ -3,12 +3,14 @@
 import * as React from "react";
 import { RefreshCw, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui";
-import { api } from "@/lib/api";
+import { api, USE_MOCK } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export interface OtpVerificationProps {
   identifier: string;
   type?: "phone" | "email";
+  /** Must match the purpose used when the OTP was sent (backend OtpPurpose enum) */
+  purpose?: "SIGNUP" | "LOGIN" | "RESET_PASSWORD";
   onVerified: (data?: any) => void;
   length?: number;
   onChangeNumber?: () => void;
@@ -18,6 +20,7 @@ export interface OtpVerificationProps {
 export function OtpVerification({
   identifier,
   type = "phone",
+  purpose = "SIGNUP",
   onVerified,
   length = 6,
   onChangeNumber,
@@ -79,14 +82,17 @@ export function OtpVerification({
       setErrorMessage("");
 
       try {
+        // Backend returns { verified: true, message } — tokens come from login/register
         const response = await api.post<{
+          verified?: boolean;
+          message?: string;
           accessToken?: string;
           refreshToken?: string;
           user?: any;
         }>("/auth/otp/verify", {
           identifier,
           otp: code,
-          type,
+          purpose,
         });
 
         // Trigger success state
@@ -95,6 +101,13 @@ export function OtpVerification({
           onVerified(response);
         }, 500);
       } catch (err: any) {
+        if (!USE_MOCK) {
+          setHasError(true);
+          setErrorMessage(err?.message || "Invalid OTP, please try again");
+          setDigits(Array(length).fill(""));
+          inputRefs.current[0]?.focus();
+          return;
+        }
         // Fallback simulation for offline / mock testing: '123456' or any valid mock
         if (code === "000000") {
           setHasError(true);
@@ -121,7 +134,7 @@ export function OtpVerification({
         setIsVerifying(false);
       }
     },
-    [identifier, length, isVerifying, onVerified, type]
+    [identifier, length, isVerifying, onVerified, type, purpose]
   );
 
   // Single digit input
@@ -201,7 +214,7 @@ export function OtpVerification({
     try {
       await api.post("/auth/otp/send", {
         identifier,
-        type,
+        purpose,
       });
       setResendAttempts((prev) => prev + 1);
       setSecondsRemaining(30);
@@ -209,7 +222,12 @@ export function OtpVerification({
       setHasError(false);
       setErrorMessage("");
       inputRefs.current[0]?.focus();
-    } catch {
+    } catch (err: any) {
+      if (!USE_MOCK) {
+        setHasError(true);
+        setErrorMessage(err?.message || "Could not resend OTP. Please wait and try again.");
+        return;
+      }
       // Simulate success in mock mode
       setResendAttempts((prev) => prev + 1);
       setSecondsRemaining(30);

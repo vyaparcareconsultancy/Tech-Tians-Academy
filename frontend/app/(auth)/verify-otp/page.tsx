@@ -65,6 +65,7 @@ function VerifyOtpContent() {
         identifier={identifier}
         type={type}
         onVerified={handleVerified}
+        purpose="LOGIN"
         onChangeNumber={() => router.push("/login")}
       />
     </div>

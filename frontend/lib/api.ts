@@ -20,6 +20,9 @@ export interface RequestOptions extends Omit<RequestInit, "body"> {
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
 
+/** When true, pages fall back to mock data / simulated success if the API fails. */
+export const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
+
 /**
  * Token resolver hook/function. Can be customized or set dynamically.
  */
@@ -107,12 +110,20 @@ export async function apiClient<T = unknown>(
   }
 
   if (!response.ok) {
-    const errorMessage =
-      (data && typeof data === "object" && "message" in data && typeof data.message === "string")
-        ? data.message
-        : undefined;
+    // Backend error envelope: { success: false, message: string | string[], errorCode, ... }
+    const rawMessage = data && typeof data === "object" ? data.message : undefined;
+    const errorMessage = Array.isArray(rawMessage)
+      ? rawMessage.join(", ")
+      : typeof rawMessage === "string"
+      ? rawMessage
+      : undefined;
 
     throw new ApiError(response.status, response.statusText, data, errorMessage);
+  }
+
+  // Backend success envelope: { success: true, data: T, meta?, timestamp }
+  if (data && typeof data === "object" && data.success === true && "data" in data) {
+    return data.data as T;
   }
 
   return data as T;

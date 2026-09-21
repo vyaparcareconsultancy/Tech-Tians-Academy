@@ -1,6 +1,6 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -26,6 +26,26 @@ export const setMemoryAccessToken = (token: string | null) => {
     }
   }
 };
+
+// Refresh token: backend expects it in the request body of /auth/refresh and /auth/logout
+// (it does not set an httpOnly cookie yet), so we keep it in localStorage for now.
+const REFRESH_TOKEN_KEY = "techtians_refresh_token";
+
+export const setRefreshToken = (token: string | null) => {
+  if (typeof window === "undefined") return;
+  if (token) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  }
+};
+
+export const getRefreshToken = (): string | null =>
+  typeof window !== "undefined" ? localStorage.getItem(REFRESH_TOKEN_KEY) : null;
+
+/** Backend wraps every success response as { success: true, data, meta?, timestamp } */
+const unwrapEnvelope = (body: any) =>
+  body && typeof body === "object" && body.success === true && "data" in body ? body.data : body;
 
 export const getMemoryAccessToken = (): string | null => {
   if (memoryAccessToken) return memoryAccessToken;
@@ -70,7 +90,11 @@ const processQueue = (error: AxiosError | null, token: string | null = null) => 
 };
 
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Unwrap envelope so services can keep using `response.data` directly
+    response.data = unwrapEnvelope(response.data);
+    return response;
+  },
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
@@ -94,15 +118,22 @@ apiClient.interceptors.response.use(
 
       try {
         // Call backend refresh endpoint
+        const refreshToken = getRefreshToken();
+        if (!refreshToken) {
+          throw new Error("No refresh token stored");
+        }
+
         const response = await axios.post(
           `${API_BASE_URL}/auth/refresh`,
-          {},
+          { refreshToken },
           { withCredentials: true }
         );
 
-        const newAccessToken = response.data?.accessToken;
+        const refreshed = unwrapEnvelope(response.data);
+        const newAccessToken = refreshed?.accessToken;
         if (newAccessToken) {
           setMemoryAccessToken(newAccessToken);
+          setRefreshToken(refreshed?.refreshToken ?? null);
           processQueue(null, newAccessToken);
 
           if (originalRequest.headers) {
@@ -115,6 +146,7 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError as AxiosError, null);
         setMemoryAccessToken(null);
+        setRefreshToken(null);
 
         if (typeof window !== "undefined") {
           // Clear session cookies and redirect to login

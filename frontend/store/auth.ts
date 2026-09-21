@@ -14,9 +14,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   isAuthenticated: false,
 
-  login: ({ accessToken, user }) => {
+  login: ({ accessToken, refreshToken, user }) => {
     try {
       localStorage.setItem("token", accessToken);
+      if (refreshToken) localStorage.setItem("refreshToken", refreshToken);
     } catch {
       // Ignore localStorage failure
     }
@@ -36,6 +37,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => {
     try {
       localStorage.removeItem("token");
+      localStorage.removeItem("refreshToken");
     } catch {
       // Ignore localStorage failure
     }

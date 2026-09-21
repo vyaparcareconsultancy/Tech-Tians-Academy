@@ -23,7 +23,8 @@ import {
   useToast,
 } from "@/components/ui";
 import { OtpVerification } from "@/components/shared";
-import { api } from "@/lib/api";
+import { api, USE_MOCK } from "@/lib/api";
+import { AuthTokens, RegisterResponse, toUserProfile } from "@/lib/auth";
 import { useAuthStore } from "@/store/auth";
 
 // Step 1 Form Schema
@@ -73,6 +74,8 @@ export default function SignupPage() {
     fullName?: string;
     phone: string;
     email: string;
+    tokens?: AuthTokens;
+    user?: RegisterResponse["user"];
   } | null>(null);
 
   const {
@@ -118,30 +121,27 @@ export default function SignupPage() {
   const onSubmitStep1 = async (data: SignupFormValues) => {
     try {
       // 1. Call registration endpoint
-      const regResponse = await api.post<{ userId?: string }>("/auth/register", {
+      // Backend creates the account, returns tokens and automatically sends
+      // a SIGNUP OTP to the email address (no separate /auth/otp/send call needed).
+      // Note: targetExam is not stored by the backend yet, so it is not sent.
+      const regResponse = await api.post<RegisterResponse>("/auth/register", {
         name: data.fullName,
         email: data.email,
         phone: data.phone,
         password: data.password,
-        targetExam: data.targetExam,
-      });
-
-      // 2. Call OTP dispatch endpoint
-      await api.post("/auth/otp/send", {
-        userId: regResponse?.userId,
-        phone: data.phone,
-        email: data.email,
       });
 
       // Advance to step 2 with state (NOT in URL)
       setRegisteredData({
-        userId: regResponse?.userId || "usr_" + Date.now(),
+        userId: regResponse.user.id,
         fullName: data.fullName,
         phone: data.phone,
         email: data.email,
+        tokens: regResponse.tokens,
+        user: regResponse.user,
       });
       setCurrentStep(2);
-      success("OTP Dispatched", `6-digit code sent to +91 ${data.phone}`);
+      success("OTP Dispatched", `6-digit code sent to ${data.email}`);
     } catch (err: any) {
       const msg = err?.data?.message || err?.message || "";
       if (
@@ -153,6 +153,8 @@ export default function SignupPage() {
           "Account Exists",
           "An account with this email/phone is already registered. Please login instead."
         );
+      } else if (!USE_MOCK) {
+        error("Signup Failed", msg || "Could not create your account. Please try again.");
       } else {
         // Fallback simulation for mock dev
         setRegisteredData({
@@ -174,7 +176,7 @@ export default function SignupPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-h2 font-bold tracking-tight text-foreground">
-              {currentStep === 1 ? "Create Student Account" : "Verify Phone Number"}
+              {currentStep === 1 ? "Create Student Account" : "Verify Email Address"}
             </h1>
             <p className="text-body-sm text-muted-foreground">
               {currentStep === 1
@@ -366,12 +368,15 @@ export default function SignupPage() {
       ) : (
         /* STEP 2: REUSABLE OTP VERIFICATION */
         <OtpVerification
-          identifier={registeredData?.phone || ""}
-          type="phone"
+          identifier={registeredData?.email || ""}
+          type="email"
+          purpose="SIGNUP"
           onVerified={(authResult) => {
             login({
-              accessToken: authResult?.accessToken || "tok_" + Date.now(),
-              user: authResult?.user || {
+              accessToken:
+                registeredData?.tokens?.accessToken || authResult?.accessToken || "tok_" + Date.now(),
+              refreshToken: registeredData?.tokens?.refreshToken,
+              user: registeredData?.user ? toUserProfile(registeredData.user) : authResult?.user || {
                 id: registeredData?.userId || "student-1",
                 name: registeredData?.fullName || "Student",
                 email: registeredData?.email || "student@tians.academy",
